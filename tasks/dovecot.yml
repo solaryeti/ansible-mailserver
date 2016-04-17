@@ -1,0 +1,65 @@
+---
+# Installs dovecot and configures it to handle mail delivery, retrieval
+# and authentication
+- name: vmail group
+  group: name=vmail gid={{ vmail_gid }} state=present
+  tags: [ mail, dovecot ]
+
+- name: vmail user
+  user: name={{ vmail_user }} uid={{ vmail_uid }} home={{ vmail_home }}
+        comment='Virtual Mail User' shell=/sbin/nologin
+        system=yes group=vmail
+  tags: [ mail, dovecot ]
+
+- name: vmail volume
+  lvol: lv=vmail
+        vg=system
+        size=2g
+  tags: [ mail, dovecot ]
+
+- name: create vmail filesystem
+  filesystem: fstype=ext4 dev=/dev/system/vmail
+  tags: [ mail, dovecot ]
+
+- name: mount vmail
+  mount: fstype=ext4
+         name={{ vmail_home }}
+         src=/dev/system/vmail
+         state=mounted
+  tags: [ mail, dovecot ]
+
+- name: dovecot packages
+  zypper: name={{ item }} state=present
+  with_items:
+    - dovecot22
+    - dovecot22-backend-mysql
+    - dovecot22-backend-pgsql
+  tags: [ mail, dovecot ]
+
+- name: dovecot configuration
+  template: src=dovecot/dovecot.conf.j2 dest=/etc/dovecot/dovecot.conf
+            owner=root group=root mode=0644
+  notify: restart dovecot
+  tags: [ mail, dovecot ]
+
+- name: dovecot conf.d configuration
+  template: src=dovecot/{{ item }}.j2 dest=/etc/dovecot/conf.d/{{ item }}
+            owner=root group=root mode=0644
+  with_items:
+    - 10-auth.conf
+    - 10-mail.conf
+    - 10-master.conf
+    - 10-ssl.conf
+    - 15-mailboxes.conf
+    - 20-lmtp.conf
+  notify: restart dovecot
+  tags: [ mail, dovecot ]
+
+- name: dovecot users
+  template: src=dovecot/users.j2 dest=/etc/dovecot/users
+            owner=root group=root mode=0644
+  tags: [ mail, dovecot ]
+
+- name: start dovecot service
+  service: name=dovecot state=running enabled=yes
+  tags: [ mail, dovecot ]

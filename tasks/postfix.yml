@@ -1,0 +1,90 @@
+---
+# Installs postfix and configures it to use dovecot and amavisd-new
+
+- name: postfix package
+  zypper: name=postfix state=present
+  tags: [ mail, postfix ]
+
+- name: postfix config - main.cf
+  template: src=postfix/main.cf.j2 dest=/etc/postfix/main.cf
+            owner=root group=root mode=0644
+  notify: reload postfix
+  tags: [ mail, postfix ]
+
+- name: postfix config - master.cf
+  template: src=postfix/master.cf.j2 dest=/etc/postfix/master.cf
+            owner=root group=root mode=0644
+  notify: reload postfix
+  tags: [ mail, postfix ]
+
+- name: postfix config - vmailbox
+  template: src=postfix/vmailbox.j2 dest=/etc/postfix/vmailbox
+            owner=root group=root mode=0644
+  notify: postmap vmailbox
+  tags: [ mail, postfix ]
+
+- name: postfix config - virtual
+  template: src=postfix/virtual.j2 dest=/etc/postfix/virtual
+            owner=root group=root mode=0644
+  notify: postmap virtual
+  tags: [ mail, postfix, mail_aliases ]
+
+- name: postfix config - helo_access
+  template: src=postfix/helo_access.j2 dest=/etc/postfix/helo_access
+            owner=root group=root mode=0644
+  notify: postmap helo_access
+  tags: [ mail, postfix ]
+
+- name: postfix config - amavis filters
+  template: src=postfix/{{ item }}.j2 dest=/etc/postfix/{{ item }}
+            owner=root group=root mode=0644
+  with_items:
+    - tag_as_originating.re
+    - tag_as_foreign.re
+  tags: [ mail, postfix ]
+
+- name: ssl certificate
+  copy: src={{ src_ssl_cert_mail }} dest={{ smtpd_tls_cert_file }}
+        owner=root group=root mode=0644
+  tags: [ mail, postfix ]
+
+- name: ssl key
+  copy: src={{ src_ssl_key_mail }} dest={{ smtpd_tls_key_file }}
+        owner=root group=root mode=0600
+  tags: [ mail, postfix ]
+
+- name: start postfix service
+  service: name=postfix state=running enabled=yes
+  tags: [ mail, postfix ]
+
+### Postfix monitoring
+# Postfix log analyser
+- name: perl-Date-Calc package
+  zypper: name=perl-Date-Calc state=present
+  tags: [ mail, postfix ]
+
+- name: pflogsumm
+  copy: dest=/usr/local/sbin/pflogsumm
+        src=pflogsumm.pl
+        owner=root group=root mode=0755
+  tags: [ mail, postfix ]
+
+- name: logtail package
+  zypper: name=logtail state=present
+  tags: [ mail, postfix ]
+
+- name: mailx package
+  zypper: name=mailx state=present
+  tags: [ mail, postfix ]
+
+- name: remove mail logs from syslog logrotate
+  lineinfile: dest=/etc/logrotate.d/syslog state=absent regexp="^/var/log/mail"
+  tags: [ mail, postfix ]
+
+- name: weekly log rotate that sends log summary
+  template: src=postfix/logrotate.j2 dest=/etc/logrotate.d/mail
+            owner=root group=root mode=0644
+  tags: [ mail, postfix ]
+
+- include: zabbix_agent.yml
+  when: zabbix_agent == true

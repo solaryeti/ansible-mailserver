@@ -1,0 +1,5 @@
+---
+# Ansible can't find the apparmor service. Probably a bug so I'll
+# comment this out till some point in the future
+# - name: restart apparmor
+#   service: name=apparmor.service state=restarted

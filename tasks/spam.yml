@@ -1,0 +1,95 @@
+---
+### Amavisd-new
+- name: amavisd package
+  zypper: name=amavisd-new state=present
+  tags: [ mail, spam ]
+
+- name: amavisd configuration
+  template: src=spam/amavisd.conf.j2 dest=/etc/amavisd.conf
+  notify: reload amavisd
+  tags: [ mail, spam ]
+
+# http://www.ijs.si/software/amavisd/amavisd-new-docs.html#dkim
+# How to enable DKIM:
+# 1) Create domain key:
+#   amavisd genrsa /var/db/dkim/example-foo.key.pem  # We let ansible add it to /var/db/dkim
+# 2) Add the key to amavisd_dkim_key
+# 3) Show key:
+#   amavisd showkeys
+#   # These need to be added as TXT records in the DNS zone files
+- name: DKIM signature directory
+  file: dest=/var/db/dkim
+        owner=root
+        group='{{ amavisd_daemon_group }}'
+        mode=0750
+        state=directory
+  tags: [ mail, spam, dkim ]
+
+- name: DKIM signature files
+  template: src=spam/dkim.pem.j2
+            dest=/var/db/dkim/{{ item.key }}-{{ item.value.selector }}.key.pem
+            owner=root
+            group='{{ amavisd_daemon_group }}'
+            mode=0640
+  with_dict: amavisd_dkim_key
+  tags: [ mail, spam, dkim ]
+
+- name: start amavisd service
+  service: name=amavis state=running enabled=yes
+  tags: [ mail, spam ]
+
+### Battle spam
+- name: spamassassin package
+  zypper: name=spamassassin state=present
+  tags: [ mail, spam ]
+
+- name: start spamassassin service
+  service: name=spamd state=running enabled=yes
+  tags: [ mail, spam ]
+
+# Enable Greylisting
+- name: postgrey package
+  zypper: name=postgrey state=present
+  tags: [ mail, spam ]
+
+- name: start postgrey service
+  service: name=postgrey state=running enabled=yes
+  tags: [ mail, spam ]
+
+- name: postgrey client whitelist
+  lineinfile: dest=/etc/postgrey/whitelist_clients.local
+              state=present
+              line='{{ item }}'
+  with_items: postgrey_client_whitelist
+  notify: restart postgrey
+  tags: [ mail, spam ]
+
+- name: postgrey recipient whitelist
+  lineinfile: dest=/etc/postgrey/whitelist_recipients
+              state=present
+              line='{{ item }}'
+  with_items: postgrey_recipient_whitelist
+  notify: restart postgrey
+  tags: [ mail, spam ]
+
+### Battle viruses
+- name: clamav package
+  zypper: name=clamav state=present
+  tags: [ mail, spam ]
+
+- name: specify freshclam mirror
+  lineinfile: dest=/etc/freshclam.conf
+              state=present
+              regexp="^DatabaseMirror db\..*\.clamav\.net$"
+              line="DatabaseMirror db.{{ freshclam_mirror_country }}.clamav.net"
+              insertafter="^#DatabaseMirror db\.XY\.clamav\.net$"
+  notify: restart freshclam
+  tags: [ mail, spam ]
+
+- name: start freshclam service
+  service: name=freshclam state=running enabled=yes
+  tags: [ mail, spam ]
+
+- name: start clamd service
+  service: name=clamd state=running enabled=yes
+  tags: [ mail, spam ]

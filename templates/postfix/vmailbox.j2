@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+#
+{% for key in virtual_mailboxes %}
+{{ key }} {{ virtual_mailboxes[key] }}
+{% endfor %}

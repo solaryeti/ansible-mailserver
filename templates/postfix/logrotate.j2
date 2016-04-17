@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+/var/log/mail /var/log/mail.info /var/log/mail.warn /var/log/mail.err
+{
+    compress
+    dateext
+    rotate 52
+    missingok
+    weekly
+    create 640 root root
+    sharedscripts
+    prerotate
+        /usr/local/sbin/pflogsumm /var/log/mail 2>&1 |/usr/bin/mailx -s "{{ ansible_fqdn }} weekly mail stats" postmaster@{{ primary_domain }}
+    endscript
+    postrotate
+        /usr/bin/systemctl reload syslog.service > /dev/null
+    endscript
+}

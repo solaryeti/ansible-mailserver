@@ -1,0 +1,40 @@
+---
+- name: apparmor settings for usr.lib.dovecot.auth
+  lineinfile: dest=/etc/apparmor.d/local/usr.lib.dovecot.auth
+              state=present
+              regexp="^/etc/dovecot/users.*"
+              line="/etc/dovecot/users r,"
+              insertafter=EOF
+  #notify: restart apparmor
+  tags: [apparmor, mail, dovecot]
+
+- name: apparmor settings for usr.lib.dovecot.auth
+  lineinfile: dest=/etc/apparmor.d/local/usr.lib.dovecot.auth
+              state=present
+              regexp="^/var/run/dovecot/.*"
+              line="/var/run/dovecot/** rw,"
+              insertafter=EOF
+  #notify: restart apparmor
+  tags: [apparmor, mail, dovecot]
+
+- name: apparmor settings for usr.lib.dovecot items
+  lineinfile: dest=/etc/apparmor.d/local/usr.lib.dovecot.{{ item }}
+              state=present
+              regexp="^{{ vmail_home }}/\*\*.*"
+              line="{{ vmail_home }}/** rwkl,"
+              insertafter=EOF
+  with_items:
+    - imap
+    - lmtp
+    - pop3
+  #notify: restart apparmor
+  tags: [apparmor, mail, dovecot]
+
+# 'r' access needed after upgrade to dovecot22-2.2.16-34.1. Bug?
+- name: apparmor settings for usr.lib.dovecot.lmtp
+  lineinfile: dest=/etc/apparmor.d/local/usr.lib.dovecot.lmtp
+              state=present
+              line="/etc/ssl/openssl.cnf r,"
+              insertafter=EOF
+  #notify: restart apparmor
+  tags: [apparmor, mail, dovecot]

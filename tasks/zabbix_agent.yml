@@ -1,0 +1,20 @@
+---
+- name: zabbix-postfix.sh
+  copy: dest=/usr/local/sbin/zabbix-postfix.sh
+        src=zabbix-postfix.sh
+        owner=root group=root mode=0755
+  tags: [ mail, postfix, monitoring, zabbix ]
+
+- name: zabbix postfix configuration
+  template: dest=/etc/zabbix/agentd.conf.d/postfix.conf
+            src=zabbix-postfix.conf.j2
+            owner=zabbix group=root mode=0644
+  notify: restart zabbix-agentd
+  tags: [ mail, postfix, monitoring, zabbix ]
+
+- cron: name="zabbix postfix sender"
+        minute=0,30
+        user=root
+        job=/usr/local/sbin/zabbix-postfix.sh
+        cron_file=ansible_zabbix-postfix
+  tags: [ mail, postfix, monitoring, zabbix ]

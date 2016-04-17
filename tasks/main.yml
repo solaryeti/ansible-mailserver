@@ -1,0 +1,7 @@
+---
+- include: spam.yml
+- include: postfix.yml
+- include: dovecot.yml
+
+- include: apparmor.yml
+  when: apparmor_enabled == true

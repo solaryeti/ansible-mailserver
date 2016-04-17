@@ -1,0 +1,30 @@
+---
+- name: reload postfix
+  service: name=postfix state=reloaded
+
+- name: postmap vmailbox
+  command: /usr/sbin/postmap /etc/postfix/vmailbox
+
+- name: postmap virtual
+  command: /usr/sbin/postmap /etc/postfix/virtual
+
+- name: postmap helo_access
+  command: /usr/sbin/postmap /etc/postfix/helo_access
+
+- name: restart freshclam
+  service: name=freshclam state=restarted
+
+- name: restart dovecot
+  service: name=dovecot state=restarted
+
+- name: reload amavisd
+  service: name=amavis state=reloaded
+
+- name: restart postgrey
+  service: name=postgrey state=restarted
+
+- include: apparmor.yml
+  when: apparmor_enabled == true
+
+- include: zabbix_agent.yml
+  when: zabbix_agent == true
